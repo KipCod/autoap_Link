@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title or app_title }}</title>
+    <link rel="stylesheet" href="/static/styles.css?v=3">
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+</head>
+<body>
+<header>
+    <div class="brand">
+        <h1><a href="/?dataset={{ active_dataset_id or '' }}">{{ app_title }}</a></h1>
+        <div class="dataset-switcher">
+            {% for dataset in datasets %}
+            <a class="dataset-tab {{ 'active' if dataset.id == active_dataset_id else '' }}"
+               href="/?dataset={{ dataset.id }}">
+                {{ dataset.label }}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    <nav>
+        <a href="/links/manage?dataset={{ active_dataset_id or '' }}{% if version %}&version={{ version }}{% endif %}">+ Link</a>
+        <a href="/export/links?dataset={{ active_dataset_id or '' }}">Export Link CSV</a>
+    </nav>
+</header>
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>
+
