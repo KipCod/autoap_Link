@@ -131,11 +131,22 @@ def get_procedures_by_tag(
     tagged_entries: List[Dict[str, str]],
     keyword_set: Set[str]
 ) -> List[Dict[str, str]]:
-    """특정 키워드 세트에 매칭되는 프로시저 반환"""
+    """특정 키워드 세트에 매칭되는 프로시저 반환
+    
+    태그는 ';'로 구분된 여러 값을 가질 수 있습니다.
+    하나라도 매칭되면 반환합니다.
+    """
     results: List[Dict[str, str]] = []
     for entry in tagged_entries:
-        tag = entry.get("tag", "")
-        if tag in keyword_set:
+        tag_str = entry.get("tag", "").strip()
+        if not tag_str:
+            continue
+        
+        # ';'로 구분된 태그들을 파싱
+        entry_tags = {t.strip() for t in tag_str.split(";") if t.strip()}
+        
+        # 하나라도 매칭되면 결과에 추가
+        if entry_tags & keyword_set:  # 교집합이 있으면
             results.append(entry)
     return results
 

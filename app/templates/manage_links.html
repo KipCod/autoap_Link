@@ -30,13 +30,9 @@
                     <input type="url" name="link" required placeholder="https://...">
                 </label>
                 <label>
-                    Tag
-                    <select name="tag">
-                        <option value="REST">REST</option>
-                        {% for keyword in all_keywords %}
-                        <option value="{{ keyword }}">{{ keyword }}</option>
-                        {% endfor %}
-                    </select>
+                    Tags (separated by ';')
+                    <input type="text" name="tag" placeholder="REST;keyword1;keyword2" value="REST">
+                    <small style="color: #64748b; font-size: 0.85rem;">여러 태그는 세미콜론(;)으로 구분하세요</small>
                 </label>
             </div>
             <button type="submit" class="submit-btn">Add</button>
@@ -62,7 +58,14 @@
                     <tr>
                         <td><code>{{ entry.code }}</code></td>
                         <td>{{ entry.title }}</td>
-                        <td><span class="tag-badge">{{ entry.tag }}</span></td>
+                        <td>
+                            {% set tags = entry.tag.split(';') %}
+                            {% for tag in tags %}
+                                {% if tag.strip() %}
+                                <span class="tag-badge">{{ tag.strip() }}</span>
+                                {% endif %}
+                            {% endfor %}
+                        </td>
                         <td>
                             <form method="post" action="/links/update-procedure" class="inline-form">
                                 <input type="hidden" name="dataset" value="{{ active_dataset_id }}">
@@ -70,12 +73,8 @@
                                 <input type="hidden" name="version" value="{{ version }}">
                                 {% endif %}
                                 <input type="hidden" name="code" value="{{ entry.code }}">
-                                <select name="tag" class="tag-select">
-                                    <option value="REST" {% if entry.tag == 'REST' %}selected{% endif %}>REST</option>
-                                    {% for keyword in all_keywords %}
-                                    <option value="{{ keyword }}" {% if entry.tag == keyword %}selected{% endif %}>{{ keyword }}</option>
-                                    {% endfor %}
-                                </select>
+                                <input type="text" name="tag" class="tag-input" value="{{ entry.tag }}" placeholder="REST;keyword1;keyword2" style="padding: 0.3rem 0.5rem; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 0.85rem; min-width: 200px;">
+                                <small style="color: #64748b; font-size: 0.75rem; display: block; margin-top: 0.25rem;">여러 태그는 세미콜론(;)으로 구분</small>
                                 <button type="submit" class="update-btn">Update</button>
                             </form>
                         </td>

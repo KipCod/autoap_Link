@@ -227,7 +227,7 @@ def manage_links_page(request: Request, dataset: str | None = None, version: str
 
 @app.post("/links/update-procedure")
 async def update_procedure(request: Request) -> RedirectResponse:
-    """프로시저 태그 업데이트"""
+    """프로시저 태그 업데이트 (여러 태그는 ';'로 구분)"""
     form = await request.form()
     dataset_id, definition, state = _get_dataset(form.get("dataset"))
     version_id = form.get("version", "")
@@ -249,7 +249,9 @@ async def update_procedure(request: Request) -> RedirectResponse:
         # 프로시저 찾아서 태그 업데이트
         for entry in tagged_database:
             if entry.get("code") == code:
-                entry["tag"] = new_tag
+                # 태그 정규화: 공백 제거 및 ';'로 구분
+                tags = [t.strip() for t in new_tag.split(";") if t.strip()]
+                entry["tag"] = ";".join(tags) if tags else ""
                 break
         
         # 저장
@@ -288,11 +290,15 @@ async def add_procedure(request: Request) -> RedirectResponse:
         # 중복 체크
         existing_codes = {e.get("code") for e in tagged_database}
         if code not in existing_codes:
+            # 태그 정규화: 공백 제거 및 ';'로 구분
+            tags = [t.strip() for t in tag.split(";") if t.strip()] if tag else ["REST"]
+            normalized_tag = ";".join(tags)
+            
             tagged_database.append({
                 "code": code,
                 "title": title,
                 "link": link,
-                "tag": tag or "REST",
+                "tag": normalized_tag,
             })
             
             # 저장
