@@ -77,7 +77,7 @@ def load_tagged_database(csv_path: Path) -> List[Dict[str, str]]:
     """tagged_database.csv 로드
     
     지원하는 컬럼명:
-    - code: "코드", "code", "Code", "CODE"
+    - code/name: "코드", "code", "Code", "CODE", "name", "Name", "NAME"
     - title: "제목", "title", "Title", "TITLE"
     - link: "link", "url", "Link", "URL", "링크"
     - tag: "tag", "Tag", "TAG", "태그"
@@ -89,12 +89,18 @@ def load_tagged_database(csv_path: Path) -> List[Dict[str, str]]:
     with open(csv_path, "r", encoding="utf-8-sig", newline="") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            # code 컬럼 찾기 (대소문자 무시, 한국어/영어 모두 지원)
+            # code/name 컬럼 찾기 (대소문자 무시, 한국어/영어 모두 지원)
+            # 'Name' 컬럼이 우선, 없으면 'code' 컬럼 사용
             code = ""
             for key in row.keys():
-                if key.lower() in ["코드", "code"]:
+                if key.lower() in ["name"]:
                     code = row[key].strip()
                     break
+            if not code:
+                for key in row.keys():
+                    if key.lower() in ["코드", "code"]:
+                        code = row[key].strip()
+                        break
             
             # title 컬럼 찾기
             title = ""
@@ -173,6 +179,7 @@ def save_tagged_database(csv_path: Path, entries: List[Dict[str, str]]) -> None:
     
     기본적으로 한국어 컬럼명("코드", "제목")을 사용하지만,
     기존 파일이 있으면 해당 파일의 컬럼명을 유지합니다.
+    'Name' 컬럼이 있으면 우선 사용, 없으면 'code' 컬럼 사용.
     """
     # 기존 파일이 있으면 컬럼명 확인
     fieldnames = ["코드", "제목", "link", "tag"]
@@ -191,8 +198,13 @@ def save_tagged_database(csv_path: Path, entries: List[Dict[str, str]]) -> None:
             # 각 컬럼명에 맞게 매핑
             for fieldname in fieldnames:
                 field_lower = fieldname.lower()
-                if field_lower in ["코드", "code"]:
+                if field_lower in ["name"]:
+                    # 'Name' 컬럼이 있으면 우선 사용
                     row[fieldname] = entry.get("code", "")
+                elif field_lower in ["코드", "code"]:
+                    # 'Name' 컬럼이 없을 때만 'code' 컬럼 사용
+                    if "name" not in [f.lower() for f in fieldnames]:
+                        row[fieldname] = entry.get("code", "")
                 elif field_lower in ["제목", "title"]:
                     row[fieldname] = entry.get("title", "")
                 elif field_lower in ["link", "url", "링크"]:
