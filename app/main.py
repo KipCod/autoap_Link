@@ -9,8 +9,8 @@ from fastapi.templating import Jinja2Templates
 # 직접 실행과 모듈 실행 모두 지원
 try:
     from .dataset_config import DatasetDefinition, VersionDefinition, load_dataset_definitions, load_app_config
-    from .database import get_all_data, save_all_data
-    from .models import DatasetState
+    from .database import load_links
+    from .models import LinkEntry
     from .link_tree import (
         build_keyword_tree,
         load_tagged_database,
@@ -27,8 +27,8 @@ except ImportError:
     import sys
     sys.path.insert(0, str(Path(__file__).parent))
     from dataset_config import DatasetDefinition, VersionDefinition, load_dataset_definitions, load_app_config
-    from database import get_all_data, save_all_data
-    from models import DatasetState
+    from database import load_links
+    from models import LinkEntry
     from link_tree import (
         build_keyword_tree,
         load_tagged_database,
@@ -55,46 +55,28 @@ DATASET_MAP: Dict[str, DatasetDefinition] = {dataset.id: dataset for dataset in 
 DEFAULT_DATASET_ID = DATASET_DEFINITIONS[0].id
 APP_CONFIG = load_app_config()
 
-# 메모리 내 데이터 저장소 (세트별)
-_dataset_state: Dict[str, DatasetState] = {}
+# 메모리 내 링크 데이터 저장소 (세트별) - export 기능용
+_links_data: Dict[str, Dict[int, LinkEntry]] = {}
 
 
-def _load_data() -> None:
-    """각 세트의 CSV 데이터를 메모리에 로드"""
-    for definition in DATASET_DEFINITIONS:
-        bundles, memos_by_action, links = get_all_data(
-            definition.main_csv, definition.memo_csv, definition.link_csv
-        )
-        _dataset_state[definition.id] = DatasetState(
-            bundles=bundles,
-            memos_by_action=memos_by_action,
-            links=links,
-            tagged_database=[],
-        )
-
-
-def _get_dataset(dataset_id: str | None) -> Tuple[str, DatasetDefinition, DatasetState]:
-    """dataset 식별자를 검증하고 상태 반환"""
+def _get_dataset(dataset_id: str | None) -> Tuple[str, DatasetDefinition]:
+    """dataset 식별자를 검증하고 반환 (Links 앱은 링크 데이터만 필요)"""
     resolved_id = dataset_id or DEFAULT_DATASET_ID
     if resolved_id not in DATASET_MAP:
         raise HTTPException(status_code=404, detail="Dataset not found")
-    state = _dataset_state.get(resolved_id)
-    if state is None:
-        definition = DATASET_MAP[resolved_id]
-        # Links 앱에서는 CSV 파일이 없을 수 있으므로 안전하게 처리
-        # get_all_data는 파일이 없으면 빈 딕셔너리를 반환하므로 예외 처리 불필요
-        bundles, memos_by_action, links = get_all_data(
-            definition.main_csv, definition.memo_csv, definition.link_csv
-        )
-        
-        state = DatasetState(
-            bundles=bundles,
-            memos_by_action=memos_by_action,
-            links=links,
-            tagged_database=[],
-        )
-        _dataset_state[resolved_id] = state
-    return resolved_id, DATASET_MAP[resolved_id], state
+    return resolved_id, DATASET_MAP[resolved_id]
+
+
+def _get_links(dataset_id: str) -> Dict[int, LinkEntry]:
+    """링크 데이터 로드 (export 기능용)"""
+    if dataset_id not in _links_data:
+        definition = DATASET_MAP[dataset_id]
+        # link_csv가 있으면 로드, 없으면 빈 딕셔너리
+        if definition.link_csv and definition.link_csv.exists():
+            _links_data[dataset_id] = load_links(definition.link_csv)
+        else:
+            _links_data[dataset_id] = {}
+    return _links_data[dataset_id]
 
 
 def _layout_context(dataset_id: str, extra: dict) -> dict:
@@ -112,8 +94,8 @@ def _layout_context(dataset_id: str, extra: dict) -> dict:
 
 @app.on_event("startup")
 def on_startup() -> None:
-    """앱 시작 시 CSV 파일 자동 로드"""
-    _load_data()
+    """앱 시작 시 초기화 (Links 앱은 필요시에만 데이터 로드)"""
+    pass
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -124,7 +106,7 @@ def read_home(
     search_query: str | None = None,
 ) -> HTMLResponse:
     """홈 페이지 - Links 탭"""
-    dataset_id, definition, state = _get_dataset(dataset)
+    dataset_id, definition = _get_dataset(dataset)
     
     # Links 탭용 데이터 로드
     link_tree_data = None
@@ -183,7 +165,7 @@ def read_home(
 @app.get("/links/manage", response_class=HTMLResponse)
 def manage_links_page(request: Request, dataset: str | None = None, version: str | None = None) -> HTMLResponse:
     """프로시저 관리 페이지"""
-    dataset_id, definition, state = _get_dataset(dataset)
+    dataset_id, definition = _get_dataset(dataset)
     
     # 버전 선택 처리
     version_id = version or (definition.versions[0].id if definition.versions else None)
@@ -229,7 +211,7 @@ def manage_links_page(request: Request, dataset: str | None = None, version: str
 async def update_procedure(request: Request) -> RedirectResponse:
     """프로시저 태그 업데이트 (여러 태그는 ';'로 구분)"""
     form = await request.form()
-    dataset_id, definition, state = _get_dataset(form.get("dataset"))
+    dataset_id, definition = _get_dataset(form.get("dataset"))
     version_id = form.get("version", "")
     code = form.get("code", "").strip()
     new_tag = form.get("tag", "").strip()
@@ -267,7 +249,7 @@ async def update_procedure(request: Request) -> RedirectResponse:
 async def add_procedure(request: Request) -> RedirectResponse:
     """새 프로시저 추가"""
     form = await request.form()
-    dataset_id, definition, state = _get_dataset(form.get("dataset"))
+    dataset_id, definition = _get_dataset(form.get("dataset"))
     version_id = form.get("version", "")
     
     code = form.get("code", "").strip()
@@ -312,17 +294,19 @@ async def add_procedure(request: Request) -> RedirectResponse:
 
 @app.get("/export/links")
 def export_links(dataset: str | None = None) -> StreamingResponse:
-    """링크 CSV 내보내기"""
+    """링크 CSV 내보내기 (선택적 기능)"""
     import io
     import csv
 
-    dataset_id, _, state = _get_dataset(dataset)
+    dataset_id, definition = _get_dataset(dataset)
+    links = _get_links(dataset_id)
+    
     output = io.StringIO()
     writer = csv.DictWriter(output, fieldnames=["ID", "URL", "Description", "Tags"])
     writer.writeheader()
 
-    for link_id in sorted(state.links.keys()):
-        link = state.links[link_id]
+    for link_id in sorted(links.keys()):
+        link = links[link_id]
         writer.writerow(
             {
                 "ID": link.id or "",
