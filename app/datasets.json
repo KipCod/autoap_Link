@@ -10,21 +10,27 @@
           "label": "ver1",
           "tree_txt": "set_a_ver1_tree.txt",
           "other_keywords_txt": "set_a_ver1_other_keywords.txt",
-          "tagged_database_csv": "set_a_ver1_tagged_database.csv"
+          "tagged_database_csv": "set_a_ver1_tagged_database.csv",
+          "pcs_database_csv": "set_a_ver1_pcs_database.csv",
+          "pcs_keywords_txt": "set_a_ver1_pcs_keywords.txt"
         },
         {
           "id": "ver2",
           "label": "ver2",
           "tree_txt": "set_a_ver2_tree.txt",
           "other_keywords_txt": "set_a_ver2_other_keywords.txt",
-          "tagged_database_csv": "set_a_ver2_tagged_database.csv"
+          "tagged_database_csv": "set_a_ver2_tagged_database.csv",
+          "pcs_database_csv": "set_a_ver2_pcs_database.csv",
+          "pcs_keywords_txt": "set_a_ver2_pcs_keywords.txt"
         },
         {
           "id": "ver3",
           "label": "ver3",
           "tree_txt": "set_a_ver3_tree.txt",
           "other_keywords_txt": "set_a_ver3_other_keywords.txt",
-          "tagged_database_csv": "set_a_ver3_tagged_database.csv"
+          "tagged_database_csv": "set_a_ver3_tagged_database.csv",
+          "pcs_database_csv": "set_a_ver3_pcs_database.csv",
+          "pcs_keywords_txt": "set_a_ver3_pcs_keywords.txt"
         }
       ]
     },
@@ -37,14 +43,18 @@
           "label": "ver1",
           "tree_txt": "set_b_ver1_tree.txt",
           "other_keywords_txt": "set_b_ver1_other_keywords.txt",
-          "tagged_database_csv": "set_b_ver1_tagged_database.csv"
+          "tagged_database_csv": "set_b_ver1_tagged_database.csv",
+          "pcs_database_csv": "set_b_ver1_pcs_database.csv",
+          "pcs_keywords_txt": "set_b_ver1_pcs_keywords.txt"
         },
         {
           "id": "ver2",
           "label": "ver2",
           "tree_txt": "set_b_ver2_tree.txt",
           "other_keywords_txt": "set_b_ver2_other_keywords.txt",
-          "tagged_database_csv": "set_b_ver2_tagged_database.csv"
+          "tagged_database_csv": "set_b_ver2_tagged_database.csv",
+          "pcs_database_csv": "set_b_ver2_pcs_database.csv",
+          "pcs_keywords_txt": "set_b_ver2_pcs_keywords.txt"
         }
       ]
     }
