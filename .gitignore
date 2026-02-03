@@ -36,5 +36,6 @@ Thumbs.db
 
 # Project specific
 *.csv
+!*_pcs_database.csv
 *.txt
 !requirements.txt
