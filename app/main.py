@@ -14,6 +14,7 @@ try:
     from .link_tree import (
         build_keyword_tree,
         load_tagged_database,
+        load_pcs_database,
         save_tagged_database,
         get_procedures_by_tag,
         search_procedures_by_title,
@@ -32,6 +33,7 @@ except ImportError:
     from link_tree import (
         build_keyword_tree,
         load_tagged_database,
+        load_pcs_database,
         save_tagged_database,
         get_procedures_by_tag,
         search_procedures_by_title,
@@ -79,6 +81,33 @@ def _get_links(dataset_id: str) -> Dict[int, LinkEntry]:
     return _links_data[dataset_id]
 
 
+def _pcs_tree_node_to_dict(node: TreeNode, pcs_entries: List[Dict[str, str]]) -> Dict:
+    """PCS 트리 노드를 딕셔너리로 변환 (프로시저 포함)
+    
+    PCS는 code가 없고 title만 있으므로 title을 클릭하면 link가 열림.
+    """
+    # 해당 노드의 키워드만 사용 (하위 노드 제외)
+    keyword_set = {node.keyword}
+    procedures = []
+    for entry in pcs_entries:
+        tag_str = entry.get("tag", "").strip()
+        if not tag_str:
+            continue
+        entry_tags = {t.strip() for t in tag_str.split(";") if t.strip()}
+        if entry_tags & keyword_set:  # 교집합이 있으면
+            procedures.append({
+                "title": entry.get("title", ""),
+                "link": entry.get("link", ""),
+            })
+    
+    return {
+        "keyword": node.keyword,
+        "level": node.level,
+        "procedures": procedures,
+        "children": [_pcs_tree_node_to_dict(child, pcs_entries) for child in node.children]
+    }
+
+
 def _layout_context(dataset_id: str, extra: dict) -> dict:
     context = dict(extra)
     context.update(
@@ -112,6 +141,8 @@ def read_home(
     link_tree_data = None
     other_keywords_data = None
     tagged_database = []
+    pcs_tree_data = None
+    pcs_database = []
     active_version = None
     hardware_graph_data = None
     
@@ -143,6 +174,16 @@ def read_home(
         if active_version.other_keywords_txt:
             other_nodes = build_keyword_tree(active_version.other_keywords_txt)
             other_keywords_data = [tree_node_to_dict(node, tagged_database) for node in other_nodes]
+        
+        # PCS 데이터 로드
+        if active_version.pcs_database_csv:
+            pcs_database = load_pcs_database(active_version.pcs_database_csv)
+        
+        # PCS 키워드 트리 파싱 및 프로시저 매칭
+        if active_version.pcs_keywords_txt and pcs_database:
+            pcs_tree_nodes = build_keyword_tree(active_version.pcs_keywords_txt)
+            # PCS용 tree_node_to_dict (code 없이 title만 사용)
+            pcs_tree_data = [_pcs_tree_node_to_dict(node, pcs_database) for node in pcs_tree_nodes]
     
     return templates.TemplateResponse(
         "home.html",
@@ -153,6 +194,8 @@ def read_home(
                 "link_tree_data": link_tree_data,
                 "other_keywords_data": other_keywords_data,
                 "tagged_database": tagged_database,
+                "pcs_tree_data": pcs_tree_data,
+                "pcs_database": pcs_database,
                 "search_query": search_query or "",
                 "active_version": active_version,
                 "version": version,

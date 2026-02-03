@@ -82,36 +82,77 @@
     </div>
     {% endif %}
 
-    <!-- 검색 섹션 (맨 밑) -->
+    <!-- 검색 섹션 -->
     <div class="search-section">
         <h3>Search</h3>
-        <form method="get" action="/" class="search-form">
-            <input type="hidden" name="dataset" value="{{ active_dataset_id }}">
-            {% if version %}
-            <input type="hidden" name="version" value="{{ version }}">
-            {% endif %}
-            <input type="text" name="search_query" placeholder="Search by title..." 
+        <div class="search-form-container">
+            <input type="text" id="searchInput" placeholder="Search by title..." 
                    value="{{ search_query or '' }}" 
                    class="search-input">
-            <button type="submit" class="search-btn-compact">Search</button>
-        </form>
-        {% if search_query %}
-        <div class="search-results">
+            <button type="button" id="searchBtn" class="search-btn-compact">Search</button>
+        </div>
+        <div class="search-results" id="searchResults" style="display: none;">
             <h4>Search Results</h4>
-            <div class="procedure-list compact">
-                {% set query_lower = search_query.lower() %}
-                {% for entry in tagged_database %}
-                    {% if query_lower in entry.title.lower() %}
-                    <div class="procedure-item">
-                        <a href="{{ entry.link }}" target="_blank" rel="noopener" class="procedure-code-link">{{ entry.code }}</a>
-                        <span class="procedure-title">{{ entry.title }}</span>
+            <div class="procedure-list compact" id="searchResultsList"></div>
+        </div>
+    </div>
+
+    <!-- PCS 섹션 (토글 형태, 기본 접혀있음) -->
+    {% if pcs_tree_data %}
+    <div class="pcs-section">
+        <div class="pcs-section-header">
+            <h3>PCS</h3>
+            <button type="button" class="pcs-toggle-btn" id="pcsToggleBtn">
+                <span class="toggle-icon">▶</span>
+            </button>
+        </div>
+        <div class="pcs-section-content" id="pcsSectionContent" style="display: none;">
+            <div class="keyword-tree">
+                {% macro render_pcs_tree_node(node_dict, level) %}
+                <div class="tree-node" data-level="{{ level }}">
+                    <div class="tree-node-header">
+                        <button class="tree-toggle" type="button" data-keyword="{{ node_dict.keyword }}">
+                            <span class="toggle-icon">▶</span>
+                            <span class="keyword-name">{{ node_dict.keyword }}</span>
+                        </button>
                     </div>
-                    {% endif %}
+                    <div class="tree-node-content" style="display: none;">
+                        {% if node_dict.procedures %}
+                        <div class="procedure-list compact">
+                            {% for proc in node_dict.procedures %}
+                            <div class="procedure-item">
+                                <a href="{{ proc.link }}" target="_blank" rel="noopener" class="procedure-title-link">{{ proc.title }}</a>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% for child in node_dict.children %}
+                            {{ render_pcs_tree_node(child, level + 1) }}
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endmacro %}
+                {% for root_node in pcs_tree_data %}
+                    {{ render_pcs_tree_node(root_node, 0) }}
                 {% endfor %}
             </div>
+            
+            <!-- PCS 검색 섹션 -->
+            <div class="pcs-search-section">
+                <h4>PCS Search</h4>
+                <div class="search-form-container">
+                    <input type="text" id="pcsSearchInput" placeholder="Search by title..." 
+                           class="search-input">
+                    <button type="button" id="pcsSearchBtn" class="search-btn-compact">Search</button>
+                </div>
+                <div class="search-results" id="pcsSearchResults" style="display: none;">
+                    <h5>Search Results</h5>
+                    <div class="procedure-list compact" id="pcsSearchResultsList"></div>
+                </div>
+            </div>
         </div>
-        {% endif %}
     </div>
+    {% endif %}
 </section>
 
 <script>
@@ -260,5 +301,143 @@ function expandTreeNodeByKeyword(keyword) {
     }
 })();
 {% endif %}
+
+// 검색 기능 (페이지 reload 없이)
+(function() {
+    const searchInput = document.getElementById('searchInput');
+    const searchBtn = document.getElementById('searchBtn');
+    const searchResults = document.getElementById('searchResults');
+    const searchResultsList = document.getElementById('searchResultsList');
+    
+    const taggedDatabase = {{ tagged_database | tojson }};
+    
+    function performSearch(query) {
+        if (!query || !query.trim()) {
+            searchResults.style.display = 'none';
+            return;
+        }
+        
+        const queryLower = query.toLowerCase().trim();
+        const filtered = taggedDatabase.filter(entry => {
+            const title = entry.title || '';
+            return title.toLowerCase().includes(queryLower);
+        });
+        
+        if (filtered.length > 0) {
+            searchResultsList.innerHTML = '';
+            filtered.forEach(entry => {
+                const item = document.createElement('div');
+                item.className = 'procedure-item';
+                const codeLink = entry.code ? `<a href="${entry.link}" target="_blank" rel="noopener" class="procedure-code-link">${entry.code}</a>` : '';
+                item.innerHTML = `${codeLink}<span class="procedure-title">${entry.title || ''}</span>`;
+                searchResultsList.appendChild(item);
+            });
+            searchResults.style.display = 'block';
+        } else {
+            searchResults.style.display = 'none';
+        }
+    }
+    
+    if (searchBtn && searchInput) {
+        searchBtn.addEventListener('click', () => {
+            performSearch(searchInput.value);
+        });
+        
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                performSearch(searchInput.value);
+            }
+        });
+    }
+    
+    // 초기 검색 쿼리가 있으면 실행
+    {% if search_query %}
+    performSearch('{{ search_query }}');
+    {% endif %}
+})();
+
+// PCS 섹션 토글
+(function() {
+    const pcsToggleBtn = document.getElementById('pcsToggleBtn');
+    const pcsSectionContent = document.getElementById('pcsSectionContent');
+    
+    if (pcsToggleBtn && pcsSectionContent) {
+        pcsToggleBtn.addEventListener('click', () => {
+            const isExpanded = pcsSectionContent.style.display !== 'none';
+            pcsSectionContent.style.display = isExpanded ? 'none' : 'block';
+            const icon = pcsToggleBtn.querySelector('.toggle-icon');
+            if (icon) {
+                icon.textContent = isExpanded ? '▶' : '▼';
+            }
+        });
+    }
+})();
+
+// PCS 트리 토글 (기존 트리 토글과 동일하게 작동)
+document.querySelectorAll('.pcs-section .tree-toggle').forEach(toggle => {
+    toggle.addEventListener('click', function() {
+        const content = this.closest('.tree-node').querySelector('.tree-node-content');
+        const icon = this.querySelector('.toggle-icon');
+        const isExpanded = content.style.display !== 'none';
+        
+        if (isExpanded) {
+            content.style.display = 'none';
+            icon.textContent = '▶';
+        } else {
+            content.style.display = 'block';
+            icon.textContent = '▼';
+        }
+    });
+});
+
+// PCS 검색 기능
+(function() {
+    const pcsSearchInput = document.getElementById('pcsSearchInput');
+    const pcsSearchBtn = document.getElementById('pcsSearchBtn');
+    const pcsSearchResults = document.getElementById('pcsSearchResults');
+    const pcsSearchResultsList = document.getElementById('pcsSearchResultsList');
+    
+    const pcsDatabase = {{ pcs_database | tojson }};
+    
+    function performPCSSearch(query) {
+        if (!query || !query.trim()) {
+            pcsSearchResults.style.display = 'none';
+            return;
+        }
+        
+        const queryLower = query.toLowerCase().trim();
+        const filtered = pcsDatabase.filter(entry => {
+            const title = entry.title || '';
+            return title.toLowerCase().includes(queryLower);
+        });
+        
+        if (filtered.length > 0) {
+            pcsSearchResultsList.innerHTML = '';
+            filtered.forEach(entry => {
+                const item = document.createElement('div');
+                item.className = 'procedure-item';
+                item.innerHTML = `<a href="${entry.link}" target="_blank" rel="noopener" class="procedure-title-link">${entry.title || ''}</a>`;
+                pcsSearchResultsList.appendChild(item);
+            });
+            pcsSearchResults.style.display = 'block';
+        } else {
+            pcsSearchResults.style.display = 'none';
+        }
+    }
+    
+    if (pcsSearchBtn && pcsSearchInput) {
+        pcsSearchBtn.addEventListener('click', () => {
+            performPCSSearch(pcsSearchInput.value);
+        });
+        
+        pcsSearchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                performPCSSearch(pcsSearchInput.value);
+            }
+        });
+    }
+})();
 </script>
 {% endblock %}

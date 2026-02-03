@@ -133,6 +133,51 @@ def load_tagged_database(csv_path: Path) -> List[Dict[str, str]]:
     return entries
 
 
+def load_pcs_database(csv_path: Path) -> List[Dict[str, str]]:
+    """pcs_database.csv 로드 (title, link, tag만 포함)
+    
+    지원하는 컬럼명:
+    - title: "제목", "title", "Title", "TITLE"
+    - link: "link", "url", "Link", "URL", "링크"
+    - tag: "tag", "Tag", "TAG", "태그"
+    """
+    if not csv_path.exists():
+        return []
+    
+    entries: List[Dict[str, str]] = []
+    with open(csv_path, "r", encoding="utf-8-sig", newline="") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            # title 컬럼 찾기
+            title = ""
+            for key in row.keys():
+                if key.lower() in ["제목", "title"]:
+                    title = row[key].strip()
+                    break
+            
+            # link 컬럼 찾기
+            link = ""
+            for key in row.keys():
+                if key.lower() in ["link", "url", "링크"]:
+                    link = row[key].strip()
+                    break
+            
+            # tag 컬럼 찾기
+            tag = ""
+            for key in row.keys():
+                if key.lower() in ["tag", "태그"]:
+                    tag = row[key].strip()
+                    break
+            
+            entries.append({
+                "title": title,
+                "link": link,
+                "tag": tag,
+            })
+    
+    return entries
+
+
 def get_procedures_by_tag(
     tagged_entries: List[Dict[str, str]],
     keyword_set: Set[str]

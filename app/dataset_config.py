@@ -37,6 +37,8 @@ class VersionDefinition:
     tree_txt: Optional[Path] = None
     other_keywords_txt: Optional[Path] = None
     tagged_database_csv: Optional[Path] = None
+    pcs_database_csv: Optional[Path] = None
+    pcs_keywords_txt: Optional[Path] = None
 
 
 @dataclass(frozen=True)
@@ -158,6 +160,14 @@ def load_dataset_definitions() -> List[DatasetDefinition]:
             if "tagged_database_csv" in ver_item and ver_item["tagged_database_csv"]:
                 tagged_database_csv = _resolve_path(ver_item["tagged_database_csv"])
             
+            pcs_database_csv = None
+            if "pcs_database_csv" in ver_item and ver_item["pcs_database_csv"]:
+                pcs_database_csv = _resolve_path(ver_item["pcs_database_csv"])
+            
+            pcs_keywords_txt = None
+            if "pcs_keywords_txt" in ver_item and ver_item["pcs_keywords_txt"]:
+                pcs_keywords_txt = _resolve_path(ver_item["pcs_keywords_txt"])
+            
             versions.append(
                 VersionDefinition(
                     id=ver_item["id"],
@@ -165,6 +175,8 @@ def load_dataset_definitions() -> List[DatasetDefinition]:
                     tree_txt=tree_txt,
                     other_keywords_txt=other_keywords_txt,
                     tagged_database_csv=tagged_database_csv,
+                    pcs_database_csv=pcs_database_csv,
+                    pcs_keywords_txt=pcs_keywords_txt,
                 )
             )
         
