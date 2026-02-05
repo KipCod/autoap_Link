@@ -700,6 +700,46 @@ td {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
+.section-header-with-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.section-header-with-controls h3 {
+    margin: 0;
+    font-size: 1.2rem;
+    color: #0f172a;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 0.5rem;
+    flex: 1;
+}
+
+.section-controls {
+    display: flex;
+    gap: 0.5rem;
+    margin-left: 1rem;
+}
+
+.expand-all-btn,
+.shrink-all-btn {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.8rem;
+    background: #64748b;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s;
+}
+
+.expand-all-btn:hover,
+.shrink-all-btn:hover {
+    background: #475569;
+}
+
 .search-section h3,
 .hardware-section h3,
 .other-keywords-section h3 {
@@ -749,15 +789,18 @@ td {
 
 .search-btn-compact,
 .search-form button.search-btn-compact {
-    padding: 0.35rem 0.6rem !important;
-    font-size: 0.8rem !important;
+    padding: 0.35rem 0.5rem !important;
+    font-size: 0.75rem !important;
     min-width: auto !important;
+    width: auto !important;
+    max-width: 60px !important;
     background: #2563eb !important;
     color: #fff !important;
     border: none !important;
     border-radius: 6px !important;
     cursor: pointer !important;
     white-space: nowrap !important;
+    flex-shrink: 0 !important;
 }
 
 .search-btn-compact:hover,
@@ -943,12 +986,22 @@ td {
     align-items: center;
     cursor: pointer;
     user-select: none;
+    margin-bottom: 1rem;
 }
 
 .pcs-section-header h3 {
     margin: 0;
     font-size: 1.2rem;
     color: #0f172a;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 0.5rem;
+    flex: 1;
+}
+
+.pcs-header-controls {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
 }
 
 .pcs-toggle-btn {
@@ -1002,11 +1055,13 @@ td {
 
 /* 검색 버튼 컴팩트 스타일 강제 적용 */
 .search-section .search-form button.search-btn-compact,
-.search-section form.search-form button.search-btn-compact {
-    padding: 0.35rem 0.6rem !important;
-    font-size: 0.8rem !important;
+.search-section form.search-form button.search-btn-compact,
+.pcs-search-section .search-form-container button.search-btn-compact {
+    padding: 0.35rem 0.5rem !important;
+    font-size: 0.75rem !important;
     min-width: auto !important;
     width: auto !important;
-    max-width: none !important;
+    max-width: 60px !important;
+    flex-shrink: 0 !important;
 }
 
