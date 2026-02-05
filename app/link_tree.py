@@ -280,21 +280,38 @@ def tree_node_to_dict(node: TreeNode, tagged_entries: List[Dict[str, str]]) -> D
 
 
 def build_networkx_graph(tree_nodes: List[TreeNode]) -> Optional[object]:
-    """트리 노드들을 networkx DiGraph로 변환"""
+    """트리 노드들을 networkx DiGraph로 변환
+    
+    같은 키워드라도 다른 부모를 가지면 다른 노드로 처리합니다.
+    노드 ID는 부모 경로를 포함한 고유 ID를 사용합니다.
+    """
     if not HAS_NETWORKX:
         return None
     
     G = nx.DiGraph()
     
-    def add_node_recursive(node: TreeNode, parent_id: Optional[str] = None):
-        """재귀적으로 노드와 엣지 추가"""
-        node_id = node.keyword
+    def add_node_recursive(node: TreeNode, parent_path: str = ""):
+        """재귀적으로 노드와 엣지 추가
         
-        # 노드 추가 (레벨 정보 포함)
-        G.add_node(node_id, level=node.level)
+        parent_path: 부모 노드들의 경로 (예: "root/parent")
+        """
+        # 부모 경로를 포함한 고유 노드 ID 생성
+        if parent_path:
+            node_id = f"{parent_path}/{node.keyword}"
+        else:
+            node_id = node.keyword
+        
+        # 노드 추가 (레벨 정보 및 원본 키워드 포함)
+        G.add_node(node_id, level=node.level, keyword=node.keyword)
         
         # 부모-자식 관계 엣지 추가
-        if parent_id is not None:
+        if parent_path:
+            # 부모 노드 ID 찾기 (같은 키워드지만 다른 경로일 수 있음)
+            parent_id = parent_path
+            if parent_id not in G:
+                # 부모 노드가 없으면 생성 (이전 레벨에서 생성되었을 수 있음)
+                parent_keyword = parent_path.split("/")[-1]
+                G.add_node(parent_id, level=node.level - 1, keyword=parent_keyword)
             G.add_edge(parent_id, node_id)
         
         # 자식 노드 재귀 처리
@@ -319,11 +336,13 @@ def graph_to_visjs_json(G: object) -> Optional[Dict]:
     # 노드 데이터 생성
     for node_id in G.nodes():
         level = G.nodes[node_id].get("level", 0)
+        keyword = G.nodes[node_id].get("keyword", node_id)
         
         # 노드 스타일: 흰색 배경, 검은색 테두리, 검은색 글자
+        # label은 원본 키워드만 표시 (경로는 숨김)
         node_data = {
             "id": node_id,
-            "label": node_id,
+            "label": keyword,
             "level": level,
             "color": {
                 "background": "#ffffff",

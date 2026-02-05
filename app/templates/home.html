@@ -85,15 +85,19 @@
     <!-- 검색 섹션 -->
     <div class="search-section">
         <h3>Search</h3>
-        <div class="search-form-container">
-            <input type="text" id="searchInput" placeholder="Search by title..." 
-                   value="{{ search_query or '' }}" 
-                   class="search-input">
-            <button type="button" id="searchBtn" class="search-btn-compact">Search</button>
-        </div>
-        <div class="search-results" id="searchResults" style="display: none;">
-            <h4>Search Results</h4>
-            <div class="procedure-list compact" id="searchResultsList"></div>
+        <div class="search-section-layout">
+            <div class="search-results-area" id="searchResultsArea" style="display: none;">
+                <h4>Search Results</h4>
+                <div class="procedure-list compact" id="searchResultsList"></div>
+            </div>
+            <div class="search-form-area">
+                <div class="search-form-container">
+                    <input type="text" id="searchInput" placeholder="Search by title..." 
+                           value="{{ search_query or '' }}" 
+                           class="search-input">
+                    <button type="button" id="searchBtn" class="search-btn-compact">Search</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -112,11 +116,11 @@
                 <div class="tree-node" data-level="{{ level }}">
                     <div class="tree-node-header">
                         <button class="tree-toggle" type="button" data-keyword="{{ node_dict.keyword }}">
-                            <span class="toggle-icon">▶</span>
+                            <span class="toggle-icon">{{ '▼' if level == 0 else '▶' }}</span>
                             <span class="keyword-name">{{ node_dict.keyword }}</span>
                         </button>
                     </div>
-                    <div class="tree-node-content" style="display: none;">
+                    <div class="tree-node-content" style="display: {{ 'block' if level == 0 else 'none' }};">
                         {% if node_dict.procedures %}
                         <div class="procedure-list compact">
                             {% for proc in node_dict.procedures %}
@@ -156,8 +160,8 @@
 </section>
 
 <script>
-// 트리 토글 기능
-document.querySelectorAll('.tree-toggle').forEach(toggle => {
+// 트리 토글 기능 (PCS 섹션 제외)
+document.querySelectorAll('.hardware-section .tree-toggle, .other-keywords-section .tree-toggle').forEach(toggle => {
     toggle.addEventListener('click', function() {
         const content = this.closest('.tree-node').querySelector('.tree-node-content');
         const icon = this.querySelector('.toggle-icon');
@@ -175,7 +179,7 @@ document.querySelectorAll('.tree-toggle').forEach(toggle => {
 
 // 키워드로 트리 노드 찾기 및 토글 열기 함수
 function expandTreeNodeByKeyword(keyword) {
-    const treeNodes = document.querySelectorAll('.tree-node');
+    const treeNodes = document.querySelectorAll('.hardware-section .tree-node, .other-keywords-section .tree-node');
     for (const node of treeNodes) {
         const keywordName = node.querySelector('.keyword-name');
         if (keywordName && keywordName.textContent.trim() === keyword) {
@@ -286,7 +290,10 @@ function expandTreeNodeByKeyword(keyword) {
         network.on('click', function(params) {
             if (params.nodes.length > 0) {
                 const nodeId = params.nodes[0];
-                expandTreeNodeByKeyword(nodeId);
+                // 노드 ID에서 키워드 추출 (경로가 포함되어 있을 수 있음)
+                const node = graphData.nodes.find(n => n.id === nodeId);
+                const keyword = node?.label || nodeId.split('/').pop();
+                expandTreeNodeByKeyword(keyword);
             }
         });
         
@@ -306,14 +313,14 @@ function expandTreeNodeByKeyword(keyword) {
 (function() {
     const searchInput = document.getElementById('searchInput');
     const searchBtn = document.getElementById('searchBtn');
-    const searchResults = document.getElementById('searchResults');
+    const searchResultsArea = document.getElementById('searchResultsArea');
     const searchResultsList = document.getElementById('searchResultsList');
     
     const taggedDatabase = {{ tagged_database | tojson }};
     
     function performSearch(query) {
         if (!query || !query.trim()) {
-            searchResults.style.display = 'none';
+            searchResultsArea.style.display = 'none';
             return;
         }
         
@@ -332,9 +339,9 @@ function expandTreeNodeByKeyword(keyword) {
                 item.innerHTML = `${codeLink}<span class="procedure-title">${entry.title || ''}</span>`;
                 searchResultsList.appendChild(item);
             });
-            searchResults.style.display = 'block';
+            searchResultsArea.style.display = 'block';
         } else {
-            searchResults.style.display = 'none';
+            searchResultsArea.style.display = 'none';
         }
     }
     

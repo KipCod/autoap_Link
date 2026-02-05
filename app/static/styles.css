@@ -675,6 +675,21 @@ td {
     border-color: #2563eb;
 }
 
+.search-section-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.search-results-area {
+    flex: 7;
+    min-height: 200px;
+}
+
+.search-form-area {
+    flex: 3;
+}
+
 .search-section,
 .hardware-section,
 .other-keywords-section {
