@@ -135,11 +135,11 @@
                 <div class="tree-node" data-level="{{ level }}" style="display: {{ 'block' if level == 0 else 'none' }};">
                     <div class="tree-node-header">
                         <button class="tree-toggle" type="button" data-keyword="{{ node_dict.keyword }}">
-                            <span class="toggle-icon">{{ '▼' if level == 0 else '▶' }}</span>
+                            <span class="toggle-icon">▶</span>
                             <span class="keyword-name">{{ node_dict.keyword }}</span>
                         </button>
                     </div>
-                    <div class="tree-node-content" style="display: {{ 'block' if level == 0 else 'none' }};">
+                    <div class="tree-node-content" style="display: none;">
                         {% if node_dict.procedures %}
                         <div class="procedure-list compact">
                             {% for proc in node_dict.procedures %}
@@ -400,7 +400,7 @@ function expandTreeNodeByKeyword(keyword) {
     }
 })();
 
-// PCS 트리 초기화: level 0만 보이고 나머지는 숨기기
+// PCS 트리 초기화: 모든 토글을 닫은 상태로 설정
 (function() {
     const pcsNodes = document.querySelectorAll('.pcs-section .tree-node');
     pcsNodes.forEach(node => {
@@ -410,10 +410,10 @@ function expandTreeNodeByKeyword(keyword) {
         const icon = toggle?.querySelector('.toggle-icon');
         
         if (level === 0) {
-            // level 0: 노드와 콘텐츠 모두 표시
+            // level 0: 노드만 표시, 콘텐츠는 숨김
             node.style.display = 'block';
-            if (content) content.style.display = 'block';
-            if (icon) icon.textContent = '▼';
+            if (content) content.style.display = 'none';
+            if (icon) icon.textContent = '▶';
         } else {
             // level 1 이상: 노드와 콘텐츠 모두 숨김
             node.style.display = 'none';
