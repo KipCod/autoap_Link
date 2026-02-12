@@ -132,7 +132,7 @@
         <div class="pcs-section-content" id="pcsSectionContent" style="display: block;">
             <div class="keyword-tree">
                 {% macro render_pcs_tree_node(node_dict, level) %}
-                <div class="tree-node" data-level="{{ level }}">
+                <div class="tree-node" data-level="{{ level }}" style="display: {{ 'block' if level == 0 else 'none' }};">
                     <div class="tree-node-header">
                         <button class="tree-toggle" type="button" data-keyword="{{ node_dict.keyword }}">
                             <span class="toggle-icon">{{ '▼' if level == 0 else '▶' }}</span>
@@ -400,7 +400,7 @@ function expandTreeNodeByKeyword(keyword) {
     }
 })();
 
-// PCS 트리 초기화: level 0만 열고 나머지는 접기
+// PCS 트리 초기화: level 0만 보이고 나머지는 숨기기
 (function() {
     const pcsNodes = document.querySelectorAll('.pcs-section .tree-node');
     pcsNodes.forEach(node => {
@@ -409,32 +409,53 @@ function expandTreeNodeByKeyword(keyword) {
         const toggle = node.querySelector('.tree-toggle');
         const icon = toggle?.querySelector('.toggle-icon');
         
-        if (content && toggle && icon) {
-            if (level === 0) {
-                content.style.display = 'block';
-                icon.textContent = '▼';
-            } else {
-                content.style.display = 'none';
-                icon.textContent = '▶';
-            }
+        if (level === 0) {
+            // level 0: 노드와 콘텐츠 모두 표시
+            node.style.display = 'block';
+            if (content) content.style.display = 'block';
+            if (icon) icon.textContent = '▼';
+        } else {
+            // level 1 이상: 노드와 콘텐츠 모두 숨김
+            node.style.display = 'none';
+            if (content) content.style.display = 'none';
+            if (icon) icon.textContent = '▶';
         }
     });
 })();
 
-// PCS 트리 토글 (기존 트리 토글과 동일하게 작동)
+// PCS 트리 토글
 document.querySelectorAll('.pcs-section .tree-toggle').forEach(toggle => {
     toggle.addEventListener('click', function() {
         const treeNode = this.closest('.tree-node');
+        const level = parseInt(treeNode.getAttribute('data-level') || '0');
         const content = treeNode.querySelector('.tree-node-content');
         const icon = this.querySelector('.toggle-icon');
         const isExpanded = content.style.display !== 'none';
         
         if (isExpanded) {
+            // 접기: 자식 노드들도 모두 숨김
             content.style.display = 'none';
             icon.textContent = '▶';
+            // 자식 노드들도 숨김
+            const childNodes = treeNode.querySelectorAll('.tree-node[data-level]');
+            childNodes.forEach(childNode => {
+                const childLevel = parseInt(childNode.getAttribute('data-level') || '0');
+                if (childLevel > level) {
+                    childNode.style.display = 'none';
+                }
+            });
         } else {
+            // 펼치기: 콘텐츠와 직접 자식 노드들만 표시
             content.style.display = 'block';
             icon.textContent = '▼';
+            // 직접 자식 노드들만 표시 (level + 1)
+            const childNodes = treeNode.querySelectorAll('.tree-node[data-level]');
+            childNodes.forEach(childNode => {
+                const childLevel = parseInt(childNode.getAttribute('data-level') || '0');
+                if (childLevel === level + 1) {
+                    childNode.style.display = 'block';
+                }
+            });
         }
     });
 });
