@@ -465,12 +465,22 @@ document.querySelectorAll('.pcs-section .tree-toggle').forEach(toggle => {
     function expandAll(sectionSelector) {
         const nodes = document.querySelectorAll(`${sectionSelector} .tree-node`);
         nodes.forEach(node => {
+            const level = parseInt(node.getAttribute('data-level') || '0');
             const content = node.querySelector('.tree-node-content');
             const toggle = node.querySelector('.tree-toggle');
             const icon = toggle?.querySelector('.toggle-icon');
-            if (content && toggle) {
-                content.style.display = 'block';
+            
+            if (sectionSelector === '.pcs-section') {
+                // PCS 섹션: 모든 노드를 표시하고 콘텐츠도 열기
+                node.style.display = 'block';
+                if (content) content.style.display = 'block';
                 if (icon) icon.textContent = '▼';
+            } else {
+                // 하드웨어와 기타 키워드 섹션: 콘텐츠만 열기
+                if (content && toggle) {
+                    content.style.display = 'block';
+                    if (icon) icon.textContent = '▼';
+                }
             }
         });
     }
@@ -482,18 +492,21 @@ document.querySelectorAll('.pcs-section .tree-toggle').forEach(toggle => {
             const content = node.querySelector('.tree-node-content');
             const toggle = node.querySelector('.tree-toggle');
             const icon = toggle?.querySelector('.toggle-icon');
-            if (content && toggle) {
-                // PCS 섹션의 경우 level 0은 열어두고, 나머지는 접기
-                if (sectionSelector === '.pcs-section') {
-                    if (level === 0) {
-                        content.style.display = 'block';
-                        if (icon) icon.textContent = '▼';
-                    } else {
-                        content.style.display = 'none';
-                        if (icon) icon.textContent = '▶';
-                    }
+            
+            if (sectionSelector === '.pcs-section') {
+                // PCS 섹션: level 0만 표시하고 나머지는 숨기기
+                if (level === 0) {
+                    node.style.display = 'block';
+                    if (content) content.style.display = 'none';
+                    if (icon) icon.textContent = '▶';
                 } else {
-                    // 하드웨어와 기타 키워드 섹션은 모두 접기
+                    node.style.display = 'none';
+                    if (content) content.style.display = 'none';
+                    if (icon) icon.textContent = '▶';
+                }
+            } else {
+                // 하드웨어와 기타 키워드 섹션: 모두 접기
+                if (content && toggle) {
                     content.style.display = 'none';
                     if (icon) icon.textContent = '▶';
                 }
