@@ -25,7 +25,8 @@
             </div>
         </div>
         {% endif %}
-        <a href="/links/manage?dataset={{ active_dataset_id }}{% if version %}&version={{ version }}{% endif %}" class="manage-link-btn">+ Link</a>
+        <a href="/links/manage?dataset={{ active_dataset_id }}{% if version %}&version={{ version }}{% endif %}&type=procedure" class="manage-link-btn">+ Procedure</a>
+        <a href="/links/manage?dataset={{ active_dataset_id }}{% if version %}&version={{ version }}{% endif %}&type=pcs" class="manage-link-btn">+ PCS</a>
     </div>
 
     <!-- 하드웨어 섹션 -->
@@ -399,11 +400,31 @@ function expandTreeNodeByKeyword(keyword) {
     }
 })();
 
+// PCS 트리 초기화: level 0만 열고 나머지는 접기
+(function() {
+    const pcsNodes = document.querySelectorAll('.pcs-section .tree-node');
+    pcsNodes.forEach(node => {
+        const level = parseInt(node.getAttribute('data-level') || '0');
+        const content = node.querySelector('.tree-node-content');
+        const toggle = node.querySelector('.tree-toggle');
+        const icon = toggle?.querySelector('.toggle-icon');
+        
+        if (content && toggle && icon) {
+            if (level === 0) {
+                content.style.display = 'block';
+                icon.textContent = '▼';
+            } else {
+                content.style.display = 'none';
+                icon.textContent = '▶';
+            }
+        }
+    });
+})();
+
 // PCS 트리 토글 (기존 트리 토글과 동일하게 작동)
 document.querySelectorAll('.pcs-section .tree-toggle').forEach(toggle => {
     toggle.addEventListener('click', function() {
         const treeNode = this.closest('.tree-node');
-        const level = parseInt(treeNode.getAttribute('data-level') || '0');
         const content = treeNode.querySelector('.tree-node-content');
         const icon = this.querySelector('.toggle-icon');
         const isExpanded = content.style.display !== 'none';

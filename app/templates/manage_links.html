@@ -2,10 +2,113 @@
 {% block content %}
 <section class="manage-links-page">
     <div class="page-header">
-        <h2>Procedure Management</h2>
+        <h2>{% if is_pcs %}PCS Management{% else %}Procedure Management{% endif %}</h2>
         <a href="/?dataset={{ active_dataset_id }}{% if version %}&version={{ version }}{% endif %}" class="back-link">← Back to Links</a>
     </div>
 
+    {% if is_pcs %}
+    <!-- 새 PCS 추가 -->
+    <div class="manage-section">
+        <h3>Add New PCS</h3>
+        <form method="post" action="/links/add-pcs" class="procedure-form">
+            <input type="hidden" name="dataset" value="{{ active_dataset_id }}">
+            {% if version %}
+            <input type="hidden" name="version" value="{{ version }}">
+            {% endif %}
+            <div class="form-row">
+                <label>
+                    Title
+                    <input type="text" name="title" required placeholder="PCS title" maxlength="98">
+                </label>
+                <label>
+                    URL
+                    <input type="url" name="link" required placeholder="https://...">
+                </label>
+            </div>
+            <div class="form-row">
+                <label>
+                    Tags (separated by ';')
+                    <input type="text" name="tag" placeholder="keyword1;keyword2">
+                    <small style="color: #64748b; font-size: 0.85rem;">여러 태그는 세미콜론(;)으로 구분하세요</small>
+                </label>
+            </div>
+            <button type="submit" class="submit-btn">Add</button>
+        </form>
+    </div>
+
+    <!-- 기존 PCS 태그 변경 -->
+    <div class="manage-section">
+        <h3>Update PCS Tags</h3>
+        <div class="procedure-table-wrapper">
+            <table class="procedure-table">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Current Tag</th>
+                        <th>New Tag</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in pcs_database %}
+                    <tr>
+                        <td>{{ entry.title }}</td>
+                        <td>
+                            {% set tags = entry.tag.split(';') if entry.tag else [] %}
+                            {% for tag in tags %}
+                                {% if tag.strip() %}
+                                <span class="tag-badge">{{ tag.strip() }}</span>
+                                {% endif %}
+                            {% endfor %}
+                        </td>
+                        <td>
+                            <form method="post" action="/links/update-pcs" class="tag-manage-form" data-title="{{ entry.title }}">
+                                <input type="hidden" name="dataset" value="{{ active_dataset_id }}">
+                                {% if version %}
+                                <input type="hidden" name="version" value="{{ version }}">
+                                {% endif %}
+                                <input type="hidden" name="title" value="{{ entry.title }}">
+                                
+                                <!-- 현재 태그 표시 및 삭제 -->
+                                <div class="current-tags" id="tags-{{ entry.title|replace(' ', '_') }}">
+                                    {% set current_tags = entry.tag.split(';') if entry.tag else [] %}
+                                    {% for tag in current_tags %}
+                                        {% if tag.strip() %}
+                                        <span class="tag-item">
+                                            <span class="tag-badge">{{ tag.strip() }}</span>
+                                            <button type="button" class="tag-remove" data-tag="{{ tag.strip() }}" onclick="removeTag('{{ entry.title|replace(' ', '_') }}', '{{ tag.strip() }}')">×</button>
+                                        </span>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                                
+                                <!-- 새 태그 추가 -->
+                                <div class="add-tag-section">
+                                    <select class="tag-select-new" id="new-tag-{{ entry.title|replace(' ', '_') }}" style="padding: 0.3rem 0.5rem; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 0.85rem;">
+                                        <option value="">태그 선택...</option>
+                                        {% for keyword in all_keywords %}
+                                        <option value="{{ keyword }}">{{ keyword }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <button type="button" class="tag-add-btn" onclick="addTag('{{ entry.title|replace(' ', '_') }}')">추가</button>
+                                </div>
+                                
+                                <!-- 숨겨진 입력 필드 (실제 전송용) -->
+                                <input type="hidden" name="tag" id="tag-input-{{ entry.title|replace(' ', '_') }}" value="{{ entry.tag }}">
+                                
+                                <button type="submit" class="update-btn">Update</button>
+                            </form>
+                        </td>
+                        <td>
+                            <a href="{{ entry.link }}" target="_blank" rel="noopener" class="link-btn">Open</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
     <!-- 새 프로시저 추가 -->
     <div class="manage-section">
         <h3>Add New Procedure</h3>
@@ -357,16 +460,18 @@
 </style>
 
 <script>
-function updateTagInput(code) {
-    const tagsContainer = document.getElementById('tags-' + code);
-    const tagInput = document.getElementById('tag-input-' + code);
+function updateTagInput(id) {
+    const tagsContainer = document.getElementById('tags-' + id);
+    const tagInput = document.getElementById('tag-input-' + id);
+    if (!tagsContainer || !tagInput) return;
+    
     const tagItems = tagsContainer.querySelectorAll('.tag-item .tag-badge');
     const tags = Array.from(tagItems).map(item => item.textContent.trim()).filter(t => t);
     tagInput.value = tags.join(';');
 }
 
-function addTag(code) {
-    const select = document.getElementById('new-tag-' + code);
+function addTag(id) {
+    const select = document.getElementById('new-tag-' + id);
     const selectedTag = select.value.trim();
     
     if (!selectedTag) {
@@ -374,7 +479,7 @@ function addTag(code) {
     }
     
     // 이미 존재하는 태그인지 확인
-    const tagsContainer = document.getElementById('tags-' + code);
+    const tagsContainer = document.getElementById('tags-' + id);
     const existingTags = Array.from(tagsContainer.querySelectorAll('.tag-item .tag-badge'))
         .map(item => item.textContent.trim());
     
@@ -388,19 +493,19 @@ function addTag(code) {
     tagItem.className = 'tag-item';
     tagItem.innerHTML = `
         <span class="tag-badge">${selectedTag}</span>
-        <button type="button" class="tag-remove" data-tag="${selectedTag}" onclick="removeTag('${code}', '${selectedTag}')">×</button>
+        <button type="button" class="tag-remove" data-tag="${selectedTag}" onclick="removeTag('${id}', '${selectedTag}')">×</button>
     `;
     tagsContainer.appendChild(tagItem);
     
     // 입력 필드 업데이트
-    updateTagInput(code);
+    updateTagInput(id);
     
     // 선택 초기화
     select.value = '';
 }
 
-function removeTag(code, tag) {
-    const tagsContainer = document.getElementById('tags-' + code);
+function removeTag(id, tag) {
+    const tagsContainer = document.getElementById('tags-' + id);
     const tagItems = tagsContainer.querySelectorAll('.tag-item');
     
     tagItems.forEach(item => {
@@ -411,7 +516,7 @@ function removeTag(code, tag) {
     });
     
     // 입력 필드 업데이트
-    updateTagInput(code);
+    updateTagInput(id);
 }
 </script>
 {% endblock %}

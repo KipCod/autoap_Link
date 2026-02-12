@@ -16,6 +16,7 @@ try:
         load_tagged_database,
         load_pcs_database,
         save_tagged_database,
+        save_pcs_database,
         get_procedures_by_tag,
         search_procedures_by_title,
         TreeNode,
@@ -35,6 +36,7 @@ except ImportError:
         load_tagged_database,
         load_pcs_database,
         save_tagged_database,
+        save_pcs_database,
         get_procedures_by_tag,
         search_procedures_by_title,
         TreeNode,
@@ -206,8 +208,8 @@ def read_home(
 
 
 @app.get("/links/manage", response_class=HTMLResponse)
-def manage_links_page(request: Request, dataset: str | None = None, version: str | None = None) -> HTMLResponse:
-    """프로시저 관리 페이지"""
+def manage_links_page(request: Request, dataset: str | None = None, version: str | None = None, type: str = "procedure") -> HTMLResponse:
+    """프로시저 또는 PCS 관리 페이지"""
     dataset_id, definition = _get_dataset(dataset)
     
     # 버전 선택 처리
@@ -219,21 +221,35 @@ def manage_links_page(request: Request, dataset: str | None = None, version: str
                 active_version = ver
                 break
     
-    # 모든 키워드 수집 (tree.txt + other_keywords.txt)
+    # 타입 확인 (procedure 또는 pcs)
+    is_pcs = type.lower() == "pcs"
+    
+    # 모든 키워드 수집 (tree.txt + other_keywords.txt + pcs_keywords.txt)
     all_keywords = set()
     tagged_database = []
+    pcs_database = []
     
     if active_version:
-        if active_version.tree_txt:
-            tree_nodes = build_keyword_tree(active_version.tree_txt)
-            for node in tree_nodes:
-                all_keywords.update(node.get_all_keywords())
-        if active_version.other_keywords_txt:
-            other_nodes = build_keyword_tree(active_version.other_keywords_txt)
-            for node in other_nodes:
-                all_keywords.update(node.get_all_keywords())
-        if active_version.tagged_database_csv:
-            tagged_database = load_tagged_database(active_version.tagged_database_csv)
+        if is_pcs:
+            # PCS용 키워드 수집
+            if active_version.pcs_keywords_txt:
+                pcs_tree_nodes = build_keyword_tree(active_version.pcs_keywords_txt)
+                for node in pcs_tree_nodes:
+                    all_keywords.update(node.get_all_keywords())
+            if active_version.pcs_database_csv:
+                pcs_database = load_pcs_database(active_version.pcs_database_csv)
+        else:
+            # Procedure용 키워드 수집
+            if active_version.tree_txt:
+                tree_nodes = build_keyword_tree(active_version.tree_txt)
+                for node in tree_nodes:
+                    all_keywords.update(node.get_all_keywords())
+            if active_version.other_keywords_txt:
+                other_nodes = build_keyword_tree(active_version.other_keywords_txt)
+                for node in other_nodes:
+                    all_keywords.update(node.get_all_keywords())
+            if active_version.tagged_database_csv:
+                tagged_database = load_tagged_database(active_version.tagged_database_csv)
     
     return templates.TemplateResponse(
         "manage_links.html",
@@ -242,9 +258,11 @@ def manage_links_page(request: Request, dataset: str | None = None, version: str
             {
                 "request": request,
                 "tagged_database": tagged_database,
+                "pcs_database": pcs_database,
                 "all_keywords": sorted(all_keywords),
                 "active_version": active_version,
                 "version": version,
+                "is_pcs": is_pcs,
             },
         ),
     )
@@ -335,34 +353,200 @@ async def add_procedure(request: Request) -> RedirectResponse:
     return RedirectResponse(url=return_url, status_code=303)
 
 
-@app.get("/export/links")
-def export_links(dataset: str | None = None) -> StreamingResponse:
-    """링크 CSV 내보내기 (선택적 기능)"""
+@app.post("/links/add-pcs")
+async def add_pcs(request: Request) -> RedirectResponse:
+    """새 PCS 추가 (Code 없음)"""
+    form = await request.form()
+    dataset_id, definition = _get_dataset(form.get("dataset"))
+    version_id = form.get("version", "")
+    
+    title = form.get("title", "").strip()
+    link = form.get("link", "").strip()
+    tag = form.get("tag", "").strip()
+    
+    # 버전 찾기
+    active_version = None
+    if version_id:
+        for ver in definition.versions:
+            if ver.id == version_id:
+                active_version = ver
+                break
+    
+    if title and link and active_version and active_version.pcs_database_csv:
+        # pcs_database 로드
+        pcs_database = load_pcs_database(active_version.pcs_database_csv)
+        
+        # 태그 정규화: 공백 제거 및 ';'로 구분
+        tags = [t.strip() for t in tag.split(";") if t.strip()] if tag else []
+        normalized_tag = ";".join(tags)
+        
+        pcs_database.append({
+            "title": title,
+            "link": link,
+            "tag": normalized_tag,
+        })
+        
+        # 저장
+        save_pcs_database(active_version.pcs_database_csv, pcs_database)
+    
+    return_url = f"/links/manage?dataset={dataset_id}&type=pcs"
+    if version_id:
+        return_url += f"&version={version_id}"
+    return RedirectResponse(url=return_url, status_code=303)
+
+
+@app.post("/links/update-pcs")
+async def update_pcs(request: Request) -> RedirectResponse:
+    """PCS 태그 업데이트 (여러 태그는 ';'로 구분)"""
+    form = await request.form()
+    dataset_id, definition = _get_dataset(form.get("dataset"))
+    version_id = form.get("version", "")
+    title = form.get("title", "").strip()
+    new_tag = form.get("tag", "").strip()
+    
+    # 버전 찾기
+    active_version = None
+    if version_id:
+        for ver in definition.versions:
+            if ver.id == version_id:
+                active_version = ver
+                break
+    
+    if active_version and active_version.pcs_database_csv:
+        # pcs_database 로드
+        pcs_database = load_pcs_database(active_version.pcs_database_csv)
+        
+        # PCS 찾아서 태그 업데이트
+        for entry in pcs_database:
+            if entry.get("title") == title:
+                # 태그 정규화: 공백 제거 및 ';'로 구분
+                tags = [t.strip() for t in new_tag.split(";") if t.strip()]
+                entry["tag"] = ";".join(tags) if tags else ""
+                break
+        
+        # 저장
+        save_pcs_database(active_version.pcs_database_csv, pcs_database)
+    
+    return_url = f"/links/manage?dataset={dataset_id}&type=pcs"
+    if version_id:
+        return_url += f"&version={version_id}"
+    return RedirectResponse(url=return_url, status_code=303)
+
+
+@app.get("/export/procedures")
+def export_procedures(dataset: str | None = None, version: str | None = None) -> StreamingResponse:
+    """Procedure CSV 내보내기"""
     import io
     import csv
 
     dataset_id, definition = _get_dataset(dataset)
-    links = _get_links(dataset_id)
+    
+    # 버전 선택 처리
+    version_id = version or (definition.versions[0].id if definition.versions else None)
+    active_version = None
+    if version_id:
+        for ver in definition.versions:
+            if ver.id == version_id:
+                active_version = ver
+                break
+    
+    if not active_version or not active_version.tagged_database_csv:
+        raise HTTPException(status_code=404, detail="Procedure database not found")
+    
+    tagged_database = load_tagged_database(active_version.tagged_database_csv)
+    
+    # 기존 파일의 컬럼명 확인
+    fieldnames = ["코드", "제목", "link", "tag"]
+    if active_version.tagged_database_csv.exists():
+        with open(active_version.tagged_database_csv, "r", encoding="utf-8-sig", newline="") as f:
+            reader = csv.DictReader(f)
+            if reader.fieldnames:
+                fieldnames = list(reader.fieldnames)
     
     output = io.StringIO()
-    writer = csv.DictWriter(output, fieldnames=["ID", "URL", "Description", "Tags"])
+    writer = csv.DictWriter(output, fieldnames=fieldnames)
     writer.writeheader()
 
-    for link_id in sorted(links.keys()):
-        link = links[link_id]
-        writer.writerow(
-            {
-                "ID": link.id or "",
-                "URL": link.url,
-                "Description": link.description,
-                "Tags": link.tags,
-            }
-        )
+    for entry in tagged_database:
+        row = {}
+        for fieldname in fieldnames:
+            field_lower = fieldname.lower()
+            if field_lower in ["name"]:
+                row[fieldname] = entry.get("code", "")
+            elif field_lower in ["코드", "code"]:
+                if "name" not in [f.lower() for f in fieldnames]:
+                    row[fieldname] = entry.get("code", "")
+            elif field_lower in ["제목", "title"]:
+                row[fieldname] = entry.get("title", "")
+            elif field_lower in ["link", "url", "링크"]:
+                row[fieldname] = entry.get("link", "")
+            elif field_lower in ["tag", "태그"]:
+                row[fieldname] = entry.get("tag", "")
+            else:
+                row[fieldname] = ""
+        writer.writerow(row)
 
+    filename = f"{dataset_id}_{version_id}_procedures.csv" if version_id else f"{dataset_id}_procedures.csv"
     return StreamingResponse(
         iter([output.getvalue()]),
         media_type="text/csv",
-        headers={"Content-Disposition": f'attachment; filename="{dataset_id}_links.csv"'},
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@app.get("/export/pcs")
+def export_pcs(dataset: str | None = None, version: str | None = None) -> StreamingResponse:
+    """PCS CSV 내보내기"""
+    import io
+    import csv
+
+    dataset_id, definition = _get_dataset(dataset)
+    
+    # 버전 선택 처리
+    version_id = version or (definition.versions[0].id if definition.versions else None)
+    active_version = None
+    if version_id:
+        for ver in definition.versions:
+            if ver.id == version_id:
+                active_version = ver
+                break
+    
+    if not active_version or not active_version.pcs_database_csv:
+        raise HTTPException(status_code=404, detail="PCS database not found")
+    
+    pcs_database = load_pcs_database(active_version.pcs_database_csv)
+    
+    # 기존 파일의 컬럼명 확인
+    fieldnames = ["title", "link", "tag"]
+    if active_version.pcs_database_csv.exists():
+        with open(active_version.pcs_database_csv, "r", encoding="utf-8-sig", newline="") as f:
+            reader = csv.DictReader(f)
+            if reader.fieldnames:
+                fieldnames = list(reader.fieldnames)
+    
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=fieldnames)
+    writer.writeheader()
+
+    for entry in pcs_database:
+        row = {}
+        for fieldname in fieldnames:
+            field_lower = fieldname.lower()
+            if field_lower in ["제목", "title"]:
+                row[fieldname] = entry.get("title", "")
+            elif field_lower in ["link", "url", "링크"]:
+                row[fieldname] = entry.get("link", "")
+            elif field_lower in ["tag", "태그"]:
+                row[fieldname] = entry.get("tag", "")
+            else:
+                row[fieldname] = ""
+        writer.writerow(row)
+
+    filename = f"{dataset_id}_{version_id}_pcs.csv" if version_id else f"{dataset_id}_pcs.csv"
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 

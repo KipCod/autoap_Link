@@ -20,8 +20,10 @@
         </div>
     </div>
     <nav>
-        <a href="/links/manage?dataset={{ active_dataset_id or '' }}{% if version %}&version={{ version }}{% endif %}">+ Link</a>
-        <a href="/export/links?dataset={{ active_dataset_id or '' }}">Export Link CSV</a>
+        <a href="/links/manage?dataset={{ active_dataset_id or '' }}{% if version %}&version={{ version }}{% endif %}&type=procedure">+ Procedure</a>
+        <a href="/links/manage?dataset={{ active_dataset_id or '' }}{% if version %}&version={{ version }}{% endif %}&type=pcs">+ PCS</a>
+        <a href="/export/procedures?dataset={{ active_dataset_id or '' }}{% if version %}&version={{ version }}{% endif %}">Export Procedure CSV</a>
+        <a href="/export/pcs?dataset={{ active_dataset_id or '' }}{% if version %}&version={{ version }}{% endif %}">Export PCS CSV</a>
     </nav>
 </header>
     <main>

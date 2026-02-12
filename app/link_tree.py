@@ -178,6 +178,40 @@ def load_pcs_database(csv_path: Path) -> List[Dict[str, str]]:
     return entries
 
 
+def save_pcs_database(csv_path: Path, entries: List[Dict[str, str]]) -> None:
+    """pcs_database.csv 저장 (title, link, tag만 포함)
+    
+    기본적으로 영어 컬럼명("title", "link", "tag")을 사용하지만,
+    기존 파일이 있으면 해당 파일의 컬럼명을 유지합니다.
+    """
+    # 기존 파일이 있으면 컬럼명 확인
+    fieldnames = ["title", "link", "tag"]
+    if csv_path.exists():
+        with open(csv_path, "r", encoding="utf-8-sig", newline="") as f:
+            reader = csv.DictReader(f)
+            if reader.fieldnames:
+                # 기존 컬럼명 사용 (대소문자 유지)
+                fieldnames = list(reader.fieldnames)
+    
+    with open(csv_path, "w", encoding="utf-8-sig", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for entry in entries:
+            row = {}
+            # 각 컬럼명에 맞게 매핑
+            for fieldname in fieldnames:
+                field_lower = fieldname.lower()
+                if field_lower in ["제목", "title"]:
+                    row[fieldname] = entry.get("title", "")
+                elif field_lower in ["link", "url", "링크"]:
+                    row[fieldname] = entry.get("link", "")
+                elif field_lower in ["tag", "태그"]:
+                    row[fieldname] = entry.get("tag", "")
+                else:
+                    row[fieldname] = ""
+            writer.writerow(row)
+
+
 def get_procedures_by_tag(
     tagged_entries: List[Dict[str, str]],
     keyword_set: Set[str]
